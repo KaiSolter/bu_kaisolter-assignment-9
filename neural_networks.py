@@ -27,12 +27,35 @@ class MLP:
         self.ibias = np.random.uniform(-0.5, 0.5, hidden_dim)
         self.hbias = np.random.uniform(-0.5, 0.5, output_dim)
 
+    #helper functions to handle different activation functions
+    def activate(self, x):
+        """Applies the selected activation function."""
+        if self.activation_fn == 'tanh':
+            return np.tanh(x)
+        elif self.activation_fn == 'relu':
+            return np.maximum(0, x)
+        elif self.activation_fn == 'sigmoid':
+            return 1 / (1 + np.exp(-x))
+        else:
+            raise ValueError(f"Unsupported activation function: {self.activation_fn}")
+
+    def activate_derivative(self, x):
+        """Computes the derivative of the activation function."""
+        if self.activation_fn == 'tanh':
+            return 1 - np.tanh(x) ** 2
+        elif self.activation_fn == 'relu':
+            return (x > 0).astype(float)
+        elif self.activation_fn == 'sigmoid':
+            sig = 1 / (1 + np.exp(-x))
+            return sig * (1 - sig)
+        else:
+            raise ValueError(f"Unsupported activation function: {self.activation_fn}")
         
 
     def forward(self, X, y=None):
         # TODO: forward pass, apply layers to input X
         self.z_hidden = np.dot(X, self.iweights) + self.ibias
-        self.a_hidden = np.tanh(self.z_hidden)
+        self.a_hidden = self.activate(self.z_hidden)
         self.z_output = np.dot(self.a_hidden, self.hweights) + self.hbias
         self.output = np.tanh(self.z_output)
         out = self.output
@@ -51,7 +74,7 @@ class MLP:
         db_hbias = np.sum(dz_output, axis=0)
         # Backpropagate to hidden layer
         da_hidden = np.dot(dz_output, self.hweights.T)
-        dz_hidden = da_hidden * (1 - self.a_hidden ** 2)
+        dz_hidden = da_hidden * self.activate_derivative(self.z_hidden)
         # Gradients for input to hidden weights and biases
         dw_iweights = np.dot(X.T, dz_hidden)
         db_ibias = np.sum(dz_hidden, axis=0)
@@ -116,12 +139,12 @@ def plot_gradient_graph(ax_gradient, mlp, frame):
     ax_gradient.set_xlim(-0.1, 1.1)
     ax_gradient.set_ylim(-0.1, 1.1)
     ax_gradient.axis('off')
-    ax_gradient.set_title(f"Gradients at Step {frame}")
+    ax_gradient.set_title(f"Gradients at Frame {frame}")
 
 
 # Visualization update function
 def update(frame, mlp, ax_input, ax_hidden, ax_gradient, X, y):
-    print(f"Processing frame: {frame}")
+    print(f"Processing step: {frame}")
     ax_hidden.clear()
     ax_input.clear()
     ax_gradient.clear()
@@ -130,7 +153,7 @@ def update(frame, mlp, ax_input, ax_hidden, ax_gradient, X, y):
     for _ in range(10):
         mlp.forward(X, y)
         mlp.backward(X, y)
-        print(f"Loss after frame {frame}: {mlp.loss}")
+        print(f"Loss after step {frame}: {mlp.loss}")
 
     # perform training steps by calling forward and backward function
     for _ in range(10):
@@ -141,7 +164,7 @@ def update(frame, mlp, ax_input, ax_hidden, ax_gradient, X, y):
     # TODO: Plot hidden features
     hidden_features = mlp.a_hidden 
     ax_hidden.scatter(hidden_features[:, 0], hidden_features[:, 1], hidden_features[:, 2], c=y.ravel(), cmap='bwr', alpha=0.7)
-    ax_hidden.set_title(f"Hidden Space at Step {frame}")
+    ax_hidden.set_title(f"Hidden Space at Frame {frame}")
 
     # TODO: Hyperplane visualization in the hidden space
     x_hidden = np.linspace(-2, 2, 50)
@@ -158,7 +181,7 @@ def update(frame, mlp, ax_input, ax_hidden, ax_gradient, X, y):
 
     # TODO: Distorted input space transformed by the hidden layer
     ax_input.scatter(X[:, 0], X[:, 1], c=y.ravel(), cmap='bwr', alpha=0.7)
-    ax_input.set_title(f"Input Space at Step {frame}")
+    ax_input.set_title(f"Input Space at Frame {frame}")
     
     # TODO: Plot input layer decision boundary
     x_min, x_max = X[:, 0].min() - 1, X[:, 0].max() + 1
